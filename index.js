@@ -17,7 +17,7 @@ function * generateContacts () {
  // TODO
 
 // let's create a loop
-  for (let i = 0; i < numContacts; i++) {
+  for (let i = 0; i <= numContacts; i++) {
     yield [`name-${i}`, `email-${i}@domain.tld`]
   }
 }
@@ -37,25 +37,54 @@ const migrate = async (db) => {
 
 const insertContacts = async (db) => {
     console.log('Inserting contacts ...')
-    // TODO
+
+    let query = 'INSERT INTO contacts (name, email) VALUES '
+    let count = 0
+
     for (const contacts of generateContacts()) {
-      await db.run("INSERT INTO contacts (name, email) VALUES (?, ?)", contacts)
-      console.log(`Correct Inserted contact ${contacts[0]}`)
-    //   console.log('Done inserting contacts')
+        const name = contacts[0].replace(/'/g, "''")
+        const email = contacts[1].replace(/'/g, "''")
+
+        query = query + `('${name}', '${email}'), `
+        count += 1
+
+        if (count === 800) {
+            await db.run(query.slice(0, -2))
+            query = 'INSERT INTO contacts (name, email) VALUES '
+            count = 0
+        }
+
+        console.log(`Correctly inserted contact ${name}`)
+    }
+    
+    if (count > 0) {
+        await db.run(query.slice(0, -2))
     }
 }
 
+
 // query
 const queryContact = async (db) => {
-  const start = Date.now()
-  const res = await db.get('SELECT name FROM contacts WHERE email = ?', [`email-${numContacts}@domain.tld`])
+  const start = Date.now();
+  const res = await db.get("SELECT name FROM contacts WHERE email = ?", [
+    `email-${numContacts}@domain.tld`,
+  ]);
   if (!res || !res.name) {
-    console.error('Contact not found')
-    process.exit(1)
+    console.error("Contact not found");
+    process.exit(1);
   }
-  const end = Date.now()
-  const elapsed = (end - start) / 1000
-  console.log(`Query took ${elapsed} seconds`)
+  const end = Date.now();
+  const elapsed = end - start;
+  console.log(`Query took ${elapsed} milliseconds`);
+  
+  // Log the results to a document
+  const logEntry = `${numContacts} contacts, ${elapsed} milliseconds\n`;
+    fs.appendFileSync("query_InsertTime.txt", logEntry);
+    
+  // Making a graph from the table
+  const graphEntry = `size : ${numContacts}, mill :${elapsed}\n`;
+  fs.appendFileSync("graph_InsertTime.csv", graphEntry);
+
 }
 
 (async () => {
